@@ -26,7 +26,7 @@ Configuration
 -----
         //Inquid Components
         'GoogleCloudPrint' => [
-            'class' => 'app\components\GooglePrinting\GoogleCloudPrint',
+            'class' => 'inquid\googlecloudprint\GoogleCloudPrint',
             'refresh_token' => '...',
             'client_id' => '...',
             'client_secret' => '...',
