@@ -1,0 +1,21 @@
+{
+    "name": "inquid/yii2-inquid-google-print",
+    "description": "Print documents and views using Google Cloud Print service.",
+    "type": "yii2-extension",
+    "keywords": ["yii2","extension"],
+    "license": "LGPL-3.0+",
+    "authors": [
+        {
+            "name": "inquid",
+            "email": "contact@inquid.co"
+        }
+    ],
+    "require": {
+        "yiisoft/yii2": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "inquid\\googlecloudprint\\": ""
+        }
+    }
+}
