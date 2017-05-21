@@ -17,5 +17,11 @@
         "psr-4": {
             "inquid\\googlecloudprint\\": ""
         }
-    }
+    },
+	"repositories":[
+	    {
+		"type": "git",
+		"url": "https://github.com/inquid/yii2-inquid-google-cloud-print"
+	    }
+	]
 }

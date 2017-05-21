@@ -38,6 +38,11 @@ require_once 'HttpRequest.Class.php';
 /**
  * Class GoogleCloudPrint
  * @package app\components\GooglePrinting
+ *
+ * @property mixed $accessTokenByRefreshToken
+ * @property array $printers
+ * @property mixed $authToken
+ * @property mixed $defaultPrinter
  */
 class GoogleCloudPrint extends Component
 {
