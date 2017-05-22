@@ -256,17 +256,15 @@ class GoogleCloudPrint extends Component
             $this->setAuthToken();
         }
         // Check if prtinter id is passed
-        if (empty($printerid)) {
-            // Printer id is not there so throw exception
-            if (!empty($this->default_printer_id))
-                $printerid = $this->default_printer_id;
-            else
+        if($printerid == null || $printerid == ""){
+            if($this->default_printer_id == null || $this->default_printer_id == ""){
                 throw new Exception("Please provide printer ID");
+            }else
+                $printerid = $this->default_printer_id;
         }
 
         // Prepare post fields for sending print
         $post_fields = array(
-
             'printerid' => $printerid,
             'title' => $printjobtitle,
             'contentTransferEncoding' => 'utf-8',
@@ -287,7 +285,7 @@ class GoogleCloudPrint extends Component
 
         // Has document been successfully sent?
         if ($response->success == "1") {
-            return array('status' => true, 'errorcode' => '', 'errormessage' => "", 'id' => $response->job->id);
+            return new Error('200', $response->job->id);
         } else {
             return new Error($response->errorCode, $response->message);
         }
