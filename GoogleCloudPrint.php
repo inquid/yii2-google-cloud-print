@@ -28,12 +28,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace inquid\googlecloudprint;
 
 use Exception;
+use Yii;
 use yii\base\Component;
+use yii\httpclient\Client;
 use yii\data\ArrayDataProvider;
 use yii\grid\GridView;
 use yii\helpers\Html;
+use yii\web\Session;
 
-require_once 'HttpRequest.Class.php';
 
 /**
  * Class GoogleCloudPrint
@@ -54,9 +56,12 @@ class GoogleCloudPrint extends Component
     const AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/auth";
     const ACCESSTOKEN_URL = "https://accounts.google.com/o/oauth2/token";
     const REFRESHTOKEN_URL = "https://www.googleapis.com/oauth2/v3/token";
+    const SCOPE_URL = "https://www.googleapis.com/auth/cloudprint";
 
     private $authtoken;
-    private $httpRequest;
+    private $session;
+    public $redirect_uri;
+
     public $refresh_token;
     public $client_id;
     public $client_secret;
@@ -72,7 +77,8 @@ class GoogleCloudPrint extends Component
     {
         parent::init();
         $this->authtoken = "";
-        $this->httpRequest = new HttpRequest();
+        $this->session = new Session;
+
     }
 
     /**
@@ -84,6 +90,10 @@ class GoogleCloudPrint extends Component
     public function setAuthToken()
     {
         $this->authtoken = $this->getAccessTokenByRefreshToken();
+    }
+
+    public function setAuthTokenByResponce($_access_token){
+        $this->authtoken = $_access_token;
     }
 
     /**
@@ -98,6 +108,22 @@ class GoogleCloudPrint extends Component
     }
 
 
+    public function getRefreshToken($code)
+    {
+        $authConfig = array(
+            'code' => $code,
+            'client_id' => $this->client_id,
+            'client_secret' => $this->client_secret,
+            'redirect_uri' 	=> $this->redirect_uri,
+            "grant_type"    => "authorization_code"
+        );
+
+       return $this->getAccessToken(self::ACCESSTOKEN_URL,  $authConfig);
+    }
+
+    public function test(){
+       echo  $this->refresh_token?$this->refresh_token:$this->getRefreshTokenSession();
+    }
     /**
      * Function getAccessTokenByRefreshToken
      *
@@ -114,13 +140,12 @@ class GoogleCloudPrint extends Component
     public function getAccessTokenByRefreshToken()
     {
         $refreshTokenConfig = array(
-            'refresh_token' => $this->refresh_token,
+            'refresh_token' => $this->refresh_token?$this->refresh_token:$this->getRefreshTokenSession(),
             'client_id' => $this->client_id,
             'client_secret' => $this->client_secret,
             'grant_type' => $this->grant_type
         );
-        //$responseObj = $this->getAccessToken(REFRESHTOKEN_URL, http_build_query($refreshTokenConfig));
-        return $this->getAccessToken(self::REFRESHTOKEN_URL, http_build_query($refreshTokenConfig))->access_token;
+        return $this->getAccessToken(self::REFRESHTOKEN_URL, $refreshTokenConfig)->access_token;
     }
 
 
@@ -135,19 +160,33 @@ class GoogleCloudPrint extends Component
      *
      * return http response
      */
-    public function getAccessToken($url)
+    public function getAccessToken($url, $config)
     {
-        $refreshTokenConfig = array(
-            'refresh_token' => $this->refresh_token,
+
+        $client = new Client(['baseUrl' => $url,
+            'responseConfig' => [
+                'format' => Client::FORMAT_JSON
+            ],
+        ]);
+        $response = $client->createRequest()
+            ->setMethod('POST')
+            ->addHeaders(['Content-Type' => 'application/json'])
+            ->setContent(json_encode($config))
+            ->send();
+        return json_decode($response->content);
+    }
+
+
+    public function getAuthUrl(){
+        $redirectConfig = array(
             'client_id' => $this->client_id,
-            'client_secret' => $this->client_secret,
-            'grant_type' => $this->grant_type
+            'redirect_uri'  => $this->redirect_uri,
+            'response_type' => 'code',
+            'access_type' => 'offline',
+            'prompt' => 'consent',
+            'scope'         => self::SCOPE_URL,
         );
-        $this->httpRequest->setUrl($url);
-        $this->httpRequest->setPostData(http_build_query($refreshTokenConfig));
-        $this->httpRequest->send();
-        $response = json_decode($this->httpRequest->getResponse());
-        return $response;
+        return self::AUTHORIZATION_URL."?".http_build_query($redirectConfig);
     }
 
     /**
@@ -181,13 +220,18 @@ class GoogleCloudPrint extends Component
             "Authorization: Bearer " . $this->authtoken
         );
 
-        $this->httpRequest->setUrl(self::PRINTERS_SEARCH_URL);
-        $this->httpRequest->setHeaders($authheaders);
-        $this->httpRequest->send();
-        $responsedata = $this->httpRequest->getResponse();
-        // Make Http call to get printers added by user to Google Cloud Print
-        $printers = json_decode($responsedata);
-        // Check if we have printers?
+        $client = new Client(['baseUrl' => self::PRINTERS_SEARCH_URL,
+            'responseConfig' => [
+                'format' => Client::FORMAT_JSON
+            ],
+        ]);
+
+        $request = $client->createRequest();
+        $request->headers->set('Authorization', 'Bearer ' . $this->authtoken);
+        $response = $request->send();
+        $printers = json_decode($response->content);
+
+       // Check if we have printers?
         if (is_null($printers)) {
             // We dont have printers so return balnk array
             return array();
@@ -271,21 +315,24 @@ class GoogleCloudPrint extends Component
             'content' => $content, // encode file content as base64
             'contentType' => $contenttype
         );
-        // Prepare authorization headers
-        $authheaders = array(
-            "Authorization: Bearer " . $this->authtoken
-        );
 
-        // Make http call for sending print Job
-        $this->httpRequest->setUrl(self::PRINT_URL);
-        $this->httpRequest->setPostData($post_fields);
-        $this->httpRequest->setHeaders($authheaders);
-        $this->httpRequest->send();
-        $response = json_decode($this->httpRequest->getResponse());
+        $client = new Client(['baseUrl' => self::PRINT_URL,
+            'responseConfig' => [
+                'format' => Client::FORMAT_JSON
+            ],
+        ]);
+        $return = $client->createRequest()
+            ->setMethod('POST')
+            ->addHeaders(['Authorization'=> 'Bearer '.$this->authtoken])// 'Content-Type' => 'application/json'
+            ->setData($post_fields)
+            ->send();
+        $response = json_decode($return->content);
+
 
         // Has document been successfully sent?
         if ($response->success == "1") {
-            return new Error('200', $response->job->id);
+            return array('status' => true, 'errorcode' => '', 'errormessage' => "", 'id' => $response->job->id);
+            //return new Error('200', $response->job->id);
         } else {
             return new Error($response->errorCode, $response->message);
         }
@@ -321,14 +368,15 @@ class GoogleCloudPrint extends Component
         if (empty($this->authtoken)) {
             $this->setAuthToken();
         }
+
         // Check if prtinter id is passed
-        if (empty($printerid)) {
-            // Printer id is not there so throw exception
-            if (!empty($this->default_printer_id))
-                $printerid = $this->default_printer_id;
-            else
+        if($printerid == null || $printerid == ""){
+            if($this->default_printer_id == null || $this->default_printer_id == ""){
                 throw new Exception("Please provide printer ID");
+            }else
+                $printerid = $this->default_printer_id;
         }
+
         // Open the file which needs to be print
         $handle = fopen($filepath, "rb");
         if (!$handle) {
@@ -346,17 +394,18 @@ class GoogleCloudPrint extends Component
             'content' => base64_encode($contents), // encode file content as base64
             'contentType' => $contenttype
         );
-        // Prepare authorization headers
-        $authheaders = array(
-            "Authorization: Bearer " . $this->authtoken
-        );
 
-        // Make http call for sending print Job
-        $this->httpRequest->setUrl(self::PRINT_URL);
-        $this->httpRequest->setPostData($post_fields);
-        $this->httpRequest->setHeaders($authheaders);
-        $this->httpRequest->send();
-        $response = json_decode($this->httpRequest->getResponse());
+        $client = new Client(['baseUrl' => self::PRINT_URL,
+            'responseConfig' => [
+                'format' => Client::FORMAT_JSON
+            ],
+        ]);
+        $return = $client->createRequest()
+            ->setMethod('POST')
+            ->addHeaders(['Authorization'=> 'Bearer '.$this->authtoken])// 'Content-Type' => 'application/json'
+            ->setData($post_fields)
+            ->send();
+        $response = json_decode($return->content);
 
         // Has document been successfully sent?
         if ($response->success == "1") {
@@ -368,16 +417,21 @@ class GoogleCloudPrint extends Component
 
     public function jobStatus($jobid)
     {
-        // Prepare auth headers with auth token
-        $authheaders = array(
-            "Authorization: Bearer " . $this->authtoken
-        );
+        // Check if we have auth token
+        if (empty($this->authtoken)) {
+            $this->setAuthToken();
+        }
 
-        // Make http call for sending print Job
-        $this->httpRequest->setUrl(self::JOBS_URL);
-        $this->httpRequest->setHeaders($authheaders);
-        $this->httpRequest->send();
-        $responsedata = json_decode($this->httpRequest->getResponse());
+        $client = new Client(['baseUrl' => self::JOBS_URL,
+            'responseConfig' => [
+                'format' => Client::FORMAT_JSON
+            ],
+        ]);
+
+        $request = $client->createRequest();
+        $request->headers->set('Authorization', 'Bearer ' . $this->authtoken);
+        $response = $request->send();
+        $responsedata = json_decode($response->content);
 
         foreach ($responsedata->jobs as $job)
             if ($job->id == $jobid)
@@ -409,4 +463,30 @@ class GoogleCloudPrint extends Component
         }
         return $printers;
     }
+
+    public function setRefreshTokenSession($refresh_token=""){
+        $this->session->set('refresh_token', $refresh_token);
+    }
+
+    public function getRefreshTokenSession(){
+        return $this->refresh_token?$this->refresh_token:$this->session->get('refresh_token');
+    }
+
+    public function getRedirectUrl(){
+        return $this->session->get('gcpRedirectUrl');
+    }
+    public function removeTokenSession(){
+        $this->session->remove('refresh_token');
+        $this->session->remove('gcpRedirectUrl');
+    }
+
+    public function checkRefreshTokenSession($redirectUrl){
+        if(!$this->getRefreshTokenSession()) {
+            $this->session->set('gcpRedirectUrl', $redirectUrl);
+            return Yii::$app->response->redirect($this->redirect_uri)->send();
+       }
+    }
+
+
+
 }
