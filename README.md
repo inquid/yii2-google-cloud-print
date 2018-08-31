@@ -75,14 +75,16 @@ Once the extension is installed, simply use it in your code by  :
     /* Send pdf file to print */
    $result = Yii::$app->GoogleCloudPrint->sendFileToPrinter("", "Simple pdf", Yii::getAlias('@vendor').'/inquid/yii2-inquid-google-print/simple.pdf', 'application/pdf');
 
-    /* Check if print works */
-    if ($result['status']) {
-            echo "it works!";
-    }
-
-    if(isset($result->errorMessage))
-        echo $result->errorMessage;
+   /* Check if print works */
+    if (isset($result['status'])) {
+             echo "it works!";
+     }
 ```
+AUTHORIZED REDIRECT URI
+-----
+For use with requests from web server: 
+ http://yourdomain.com/r=googlecloudauth or pretty URL http://yourdomain.com/googlecloudauth/
+
 LOGOUT LINK 
 -----
 if use online token you can logout by URL: 

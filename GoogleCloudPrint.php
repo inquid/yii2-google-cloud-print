@@ -27,14 +27,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace inquid\googlecloudprint;
 
-use Exception;
 use Yii;
+use Exception;
 use yii\base\Component;
 use yii\httpclient\Client;
 use yii\data\ArrayDataProvider;
 use yii\grid\GridView;
 use yii\helpers\Html;
 use yii\web\Session;
+use yii\web\HttpException;
+
 
 
 /**
@@ -92,6 +94,11 @@ class GoogleCloudPrint extends Component
         $this->authtoken = $this->getAccessTokenByRefreshToken();
     }
 
+    /**
+     * Function setAuthTokenByResponce
+     * Set auth token by responce
+     * return auth tokem
+     */
     public function setAuthTokenByResponce($_access_token){
         $this->authtoken = $_access_token;
     }
@@ -121,9 +128,7 @@ class GoogleCloudPrint extends Component
        return $this->getAccessToken(self::ACCESSTOKEN_URL,  $authConfig);
     }
 
-    public function test(){
-       echo  $this->refresh_token?$this->refresh_token:$this->getRefreshTokenSession();
-    }
+
     /**
      * Function getAccessTokenByRefreshToken
      *
@@ -215,11 +220,6 @@ class GoogleCloudPrint extends Component
             $this->setAuthToken();
         }
 
-        // Prepare auth headers with auth token
-        $authheaders = array(
-            "Authorization: Bearer " . $this->authtoken
-        );
-
         $client = new Client(['baseUrl' => self::PRINTERS_SEARCH_URL,
             'responseConfig' => [
                 'format' => Client::FORMAT_JSON
@@ -234,7 +234,7 @@ class GoogleCloudPrint extends Component
        // Check if we have printers?
         if (is_null($printers)) {
             // We dont have printers so return balnk array
-            return array();
+            return [];
         } else {
             // We have printers so returns printers as array
             return $this->parsePrinters($printers);
@@ -302,7 +302,7 @@ class GoogleCloudPrint extends Component
         // Check if prtinter id is passed
         if($printerid == null || $printerid == ""){
             if($this->default_printer_id == null || $this->default_printer_id == ""){
-                throw new Exception("Please provide printer ID");
+                throw new HttpException(404, "GoogleCloudPrint error: Please provide printer ID");
             }else
                 $printerid = $this->default_printer_id;
         }
@@ -331,10 +331,10 @@ class GoogleCloudPrint extends Component
 
         // Has document been successfully sent?
         if ($response->success == "1") {
-            return array('status' => true, 'errorcode' => '', 'errormessage' => "", 'id' => $response->job->id);
-            //return new Error('200', $response->job->id);
+            return array('status' => true, 'id' => $response->job->id);
         } else {
-            return new Error($response->errorCode, $response->message);
+            throw new HttpException(451,'GoogleCloudPrint error: # '. $response->errorCode . ' - ' . $response->message);
+            return [];
         }
     }
 
@@ -364,6 +364,7 @@ class GoogleCloudPrint extends Component
      */
     public function sendFileToPrinter($printerid, $printjobtitle, $filepath, $contenttype)
     {
+
         // Check if we have auth token
         if (empty($this->authtoken)) {
             $this->setAuthToken();
@@ -372,16 +373,15 @@ class GoogleCloudPrint extends Component
         // Check if prtinter id is passed
         if($printerid == null || $printerid == ""){
             if($this->default_printer_id == null || $this->default_printer_id == ""){
-                throw new Exception("Please provide printer ID");
+                throw new HttpException(404, "GoogleCloudPrint error: Please provide printer ID");
             }else
                 $printerid = $this->default_printer_id;
         }
-
-        // Open the file which needs to be print
-        $handle = fopen($filepath, "rb");
-        if (!$handle) {
-            // Can't locate file so throw exception
-            throw new Exception("Could not read the file. Please check file path.");
+        try {
+            // Open the file which needs to be print
+            $handle = fopen($filepath, "rb");
+        } catch (Exception $e) {
+            throw new HttpException(404, "GoogleCloudPrint error: Could not read the file. Please check file path.");
         }
         // Read file content
         $contents = file_get_contents($filepath);
@@ -409,9 +409,10 @@ class GoogleCloudPrint extends Component
 
         // Has document been successfully sent?
         if ($response->success == "1") {
-            return array('status' => true, 'errorcode' => '', 'errormessage' => "", 'id' => $response->job->id);
+            return array('status' => true, 'id' => $response->job->id);
         } else {
-            return new Error($response->errorCode, $response->message);
+            throw new HttpException(451,'GoogleCloudPrint error: # '. $response->errorCode . ' - ' . $response->message);
+            return [];
         }
     }
 
