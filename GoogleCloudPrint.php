@@ -150,7 +150,9 @@ class GoogleCloudPrint extends Component
             'client_secret' => $this->client_secret,
             'grant_type' => $this->grant_type
         );
-        return $this->getAccessToken(self::REFRESHTOKEN_URL, $refreshTokenConfig)->access_token;
+        $responce = $this->getAccessToken(self::REFRESHTOKEN_URL, $refreshTokenConfig);
+        if(isset($responce->access_token)) return $responce->access_token;
+        return "";
     }
 
 
