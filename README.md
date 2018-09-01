@@ -83,12 +83,12 @@ Once the extension is installed, simply use it in your code by  :
 AUTHORIZED REDIRECT URI
 -----
 For use with requests from web server: 
- http://yourdomain.com/r=googlecloudauth or pretty URL http://yourdomain.com/googlecloudauth/
+ http://yourdomain.com?r=googlecloudauth or pretty URL http://yourdomain.com/googlecloudauth/
 
 LOGOUT LINK 
 -----
 if use online token you can logout by URL: 
- http://yourdomain.com/r=googlecloudauth/remove or pretty URL http://yourdomain.com/googlecloudauth/remove
+ http://yourdomain.com?r=googlecloudauth/remove or pretty URL http://yourdomain.com/googlecloudauth/remove
  
 
 SUPPORT
