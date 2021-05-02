@@ -1,3 +1,6 @@
+# DEPRECATED
+This project will be archived soon due to the fact that *Google Cloud Print* is discontinued, please stay tuned for the PrintNode libraries as we use them as an alternative for printing.
+
 <p align="center">
     <a href="http://www.yiiframework.com/" target="_blank">
         <img src="http://static.yiiframework.com/files/logo/yii.png" width="400" alt="Yii Framework" />
